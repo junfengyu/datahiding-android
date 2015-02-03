@@ -151,9 +151,29 @@ public class MainActivity extends Activity {
                 if(receivedFile.exists()){
                 	
                 	Extract aExtract= new Extract(activity, receivedFile);
-                	//int result= SteganographyDecode(receivedFile.toString());
-                	int result = nativeBinaryDecrypt("/sdcard/receiver/received.dat","Init");
+                
+                //	int result = nativeDecrypt("/sdcard/receiver/received.dat","Init");
                 	//moriginMessage.setText(DecryptedMsg);
+                	
+                	File file = new File("/sdcard/receiver/received.dat");//("/sdcard/receiver/decrypted.dat");
+                	
+                	try
+                	{
+                		byte [] fileBytes = FileUtils.readFileToByteArray(file);
+                		String str = new String(fileBytes, "UTF-8");
+
+                		int flag = fileBytes[0];
+                		int i;
+                    	if (flag==50){
+                    		String subString = str.substring(1,str.length()) ;
+                    		moriginMessage.setText(subString);
+                    	}
+                	}
+                	catch (IOException e) {
+                		e.printStackTrace();
+                	}
+                	
+                		
                 	
                 	showToast("SteganographyDecode Msg Succeeded!");
                 	

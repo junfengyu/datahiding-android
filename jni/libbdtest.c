@@ -20,8 +20,7 @@ int equal_ulonglong_arrays(ulonglong a1 [], ulonglong a2 [], int n)
     return (1);
 }
 
-
-void XOR(ulonglong* source,ulonglong* target,ulonglong* key, int length)
+void XOR(uchar* source,uchar* target,uchar* key, int length)
 {
 
     int count=0;
@@ -81,109 +80,67 @@ JNIEXPORT jbyteArray JNICALL Java_com_ethan_datahidingdemo_1receiver_MainActivit
   (JNIEnv* pEnv, jobject pObj, jstring aplaintext, jstring amasterkey){
 	 /*Get the native string from javaString*/
 
-		LOGD("check point 1\n");
-	    //receive parameter from java jni
-	    uchar *nativeplaintext = (*pEnv)->GetStringUTFChars(pEnv, aplaintext, 0);
-	    char *nativemasterkey = (*pEnv)->GetStringUTFChars(pEnv,amasterkey,0);
-	    int textLength=strlen(nativeplaintext);
-	    uchar * ciphertextstrbuf=NULL;
-	    LOGD("check point 2\n");
-	    //allocate and initiate
-	    ulong iv[] = { 0, 0, 0, 0 };
-	    ulonglong* target = (ulonglong*)malloc(textLength*sizeof(ulonglong));  
-	    ulonglong* plaintext_ulonglong=ucharbuf2ulonglongbuf(nativeplaintext); 
-	    ulong* masterkey_ulong=ucharbuf2ulongbuf(nativemasterkey);            
-      	ulonglong* ks = (ulonglong*)malloc((textLength)*sizeof(ulonglong));
-      	LOGD("check point 3\n");
-        //generate keystream
-
-        Dragon2_Ctx ctx;
-        BD_initkey(&ctx, masterkey_ulong);
-        BD_initiv(&ctx, iv);
-    	BD_keystream(&ctx, ks, textLength/2);
-    	LOGD("check point 4\n");
-    	// encrypt
-        XOR(plaintext_ulonglong, target, ks, textLength);
-        ciphertextbuf=target;
-        ciphertextstrbuf = ulonglongbuf2uchar(target,textLength);
-
-        LOGD("check point 5\n");
-        //convert vector<char> to jbyteArray
-
-
-        jbyte* result_e = (jbyte*)malloc(textLength*sizeof(uchar));;
-        jbyteArray result = (*pEnv)->NewByteArray(pEnv,textLength);
-        for (int i = 0; i < textLength; i++) {
-          result_e[i] = (jbyte)ciphertextstrbuf[i];
-        }
-        (*pEnv)->SetByteArrayRegion(pEnv, result, 0,textLength, result_e);
-
-
-        (*pEnv)->ReleaseStringUTFChars(pEnv, aplaintext, nativeplaintext);
-	    (*pEnv)->ReleaseStringUTFChars(pEnv, amasterkey, nativemasterkey);
-	    return result;
 }
 
 
 
 
 JNIEXPORT jint JNICALL Java_com_ethan_datahidingdemo_1receiver_MainActivity_nativeDecrypt
-  (JNIEnv* pEnv, jobject pObj, jstring aciphertextFilePath, jstring amasterkey){
+  (JNIEnv* pEnv, jobject pObj, jstring filepath, jstring amasterkey){
 	 /*Get the native string from javaString*/
-		    uchar *nativeciphertextFilePath = (*pEnv)->GetStringUTFChars(pEnv, aciphertextFilePath, 0);
-		    uchar *nativemasterkey= (*pEnv)->GetStringUTFChars(pEnv,amasterkey,0);
-		
-		    /*Do something with the nativeString*/
-		    ulong iv[] = { 0, 0, 0, 0 };
-		    LOGD("check point 1\n");
-		    char encryptedMsgFilePath[] = "/sdcard/receiver/ReceivedMsg.txt";
-		    int messagelength;
-		    char *message;
-		    LOGD("check point 2\n");
-		    FILE *fl = fopen(encryptedMsgFilePath, "r");
+			char *native_filepath = (*pEnv)->GetStringUTFChars(pEnv,filepath,0);
+		    char *nativemasterkey = (*pEnv)->GetStringUTFChars(pEnv,amasterkey,0);
+
+		    LOGD("check point 1");
+		    FILE *fl = fopen(native_filepath, "r");
 		    fseek(fl, 0, SEEK_END);
-		    int len = ftell(fl);
+		    int dataLength;
+		    int msgLength = ftell(fl);
+		    if(msgLength%8)
+		    	dataLength = msgLength/8 + 1;
+		    else dataLength = msgLength/8;
 		    fseek(fl, 0, SEEK_SET);
-		    len=len/8;
-		    ulonglong* encryptedLongLongBuf=(ulonglong*)malloc(len*sizeof(ulonglong));
-		    fread(encryptedLongLongBuf, 8, len, fl);
+		    uchar*  ucharBuf=(uchar*)malloc(msgLength*sizeof(uchar));
+		    memset (ucharBuf,'\0',msgLength);
+		    fread(ucharBuf, 1, msgLength, fl);
 		    fclose(fl);
-		    LOGD("Text Length is %d\n",len);
-		    FILE *fp1;
-		    fp1=fopen("/sdcard/receiver/verify.txt","wb");
-		    fwrite(encryptedLongLongBuf,sizeof(ulonglong),len,fp1);
-		    fclose(fp1);
 
-		    LOGD("check point 3\n");
-		    int textLength=len;
-
-		    LOGD("check point 4\n");
-		    ulonglong* target = (ulonglong*)malloc(textLength*sizeof(ulonglong));  
+		    LOGD("check point 2");
+		    int kslength = dataLength/2;
+		    uchar* target = (uchar*)malloc(msgLength*sizeof(uchar));
+		    uchar* source= ucharBuf;
+		    //allocate and initiate
+		    ulong iv[] = { 0, 0, 0, 0 };
 		    //ulong* masterkey_ulong=ucharbuf2ulongbuf(nativemasterkey);
 		    ulong masterkey_ulong[]={0,0,0,0};
-		    ulonglong* ks = (ulonglong*)malloc((textLength)*sizeof(ulonglong)); 
+	      	ulonglong* ks = (ulonglong*)malloc((dataLength)*sizeof(ulonglong));
+	        //generate keystream
 
-		    Dragon2_Ctx ctx;
-		    BD_initkey(&ctx, masterkey_ulong);
-		    BD_initiv(&ctx, iv);
-		    BD_keystream(&ctx, ks, textLength/2);
-		    LOGD("check point 5\n");
-		    XOR(encryptedLongLongBuf,target, ks, textLength);
-		    LOGD("check point 6\n");
-		    uchar* plaintextbuf = ulonglongbuf2uchar(target,textLength);
+	        Dragon2_Ctx ctx;
+	        BD_initkey(&ctx, masterkey_ulong);
+	        BD_initiv(&ctx, iv);
+	    	BD_keystream(&ctx, ks, kslength);
+	    	uchar *ksArray = (unsigned char*)ks;
 
-		  //  LOGD((char*)plaintextbuf);
-		    /*DON'T FORGET THIS LINE!!!*/
-		   // LOGD(plaintextbuf);
-		    FILE *f;
-		    f=fopen("/sdcard/receiver/ReceivedMsgdecrypted.txt","wb");
-		    fwrite(plaintextbuf,1,textLength,f);
-		    fclose(f);
+		    LOGD("check point 3");
+	    	// encrypt
+	        XOR(source, target, ksArray, msgLength);
+	        uchar *ciphertextbuf=target;
 
-		    (*pEnv)->ReleaseStringUTFChars(pEnv, aciphertextFilePath, nativeciphertextFilePath);
+		    LOGD("check point 4");
+	        FILE *fp;
+	        fp=fopen("/sdcard/receiver/decrypted.dat","wb");
+	        fwrite(target,sizeof(uchar),msgLength,fp);
+	        fclose(fp);
+
+	        free(target);
+	        free(ucharBuf);
+
+	        (*pEnv)->ReleaseStringUTFChars(pEnv, filepath, native_filepath);
+
 		    (*pEnv)->ReleaseStringUTFChars(pEnv, amasterkey, nativemasterkey);
-		    //return (*pEnv)->NewStringUTF(pEnv,(char*)plaintextbuf);
-		     return 0;
+		    return 0;
+
 }
 
 
