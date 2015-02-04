@@ -18,6 +18,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Base64;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -37,6 +38,7 @@ import com.dropbox.client2.session.AccessTokenPair;
 import com.dropbox.client2.session.AppKeyPair;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.ArrayUtils;
 
 import ru.bartwell.exfilepicker.ExFilePicker;
 import ru.bartwell.exfilepicker.ExFilePickerParcelObject;
@@ -133,7 +135,7 @@ public class MainActivity extends Activity {
             public void onClick(View v) {
             	Intent intent = new Intent(getApplicationContext(), ru.bartwell.exfilepicker.ExFilePickerActivity.class);
             	intent.putExtra(ExFilePicker.SET_ONLY_ONE_ITEM, true);
-            	intent.putExtra(ExFilePicker.SET_FILTER_LISTED, new String[] { "jpg", "jpeg","pdf" });
+            	intent.putExtra(ExFilePicker.SET_FILTER_LISTED, new String[] { "jpg", "jpeg","pdf","txt" });
             	intent.putExtra(ExFilePicker.DISABLE_NEW_FOLDER_BUTTON, true);
             	intent.putExtra(ExFilePicker.SET_CHOICE_TYPE, ExFilePicker.CHOICE_TYPE_FILES);
             	startActivityForResult(intent, EX_FILE_PICKER_RESULT);
@@ -152,30 +154,54 @@ public class MainActivity extends Activity {
                 	
                 	Extract aExtract= new Extract(activity, receivedFile);
                 
-                //	int result = nativeDecrypt("/sdcard/receiver/received.dat","Init");
-                	//moriginMessage.setText(DecryptedMsg);
-                	
+                          	
                 	File file = new File("/sdcard/receiver/received.dat");//("/sdcard/receiver/decrypted.dat");
                 	
                 	try
                 	{
-                		byte [] fileBytes = FileUtils.readFileToByteArray(file);
-                		String str = new String(fileBytes, "UTF-8");
-
-                		int flag = fileBytes[0];
-                		int i;
-                    	if (flag==50){
-                    		String subString = str.substring(1,str.length()) ;
-                    		moriginMessage.setText(subString);
-                    	}
+                		String stringToStore = FileUtils.readFileToString(file);
+                		
+                		byte[] restoredBytes = Base64.decode(stringToStore.getBytes(),stringToStore.length()); 
+                		FileUtils.writeByteArrayToFile(file, restoredBytes);
+                    	
                 	}
                 	catch (IOException e) {
                 		e.printStackTrace();
                 	}
-                	
-                		
-                	
-                	showToast("SteganographyDecode Msg Succeeded!");
+                	 
+                    int result = nativeDecrypt("/sdcard/receiver/received.dat","Init");
+                    
+                    File file2 = new File("/sdcard/receiver/decrypted.dat");
+                    int length = (int)file2.length();
+                   
+					try {
+						byte[] preprocess = FileUtils.readFileToByteArray(file2);
+						byte flag = preprocess[0];
+						if(flag==50)
+						{
+							String DecryptedMsg = FileUtils.readFileToString(file2, "UTF-8");
+							moriginMessage.setText(DecryptedMsg.substring(1);//  (1,DecryptedMsg.length()));
+						}
+						else if (flag==53)
+						{
+							int index;
+							index = ArrayUtils.indexOf(preprocess,(byte)62);
+							byte[] extracteddata=ArrayUtils.subarray(preprocess, index+1, length);//ArrayUtils.getLength(preprocess));
+							byte[] filename=ArrayUtils.subarray(preprocess, 1, index);
+							
+							String s= new String(filename,"UTF-8");
+							String savedfilename="/sdcard/receiver/"+ s;
+							File file3 = new File(savedfilename);
+							FileUtils.writeByteArrayToFile(file3, extracteddata);
+							//showToast("decrypted file saved to %s",savedfilename);
+						}
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                    
+                	               	
+                	showToast("SteganographyDecode Succeeded!");
                 	
                 	//try {
                 	  // String str = FileUtils.readFileToString(new File( sdCard.getAbsolutePath() + "/receiver/"+"ReceivedMsgdecrypted.txt"));
@@ -190,7 +216,7 @@ public class MainActivity extends Activity {
                 
             }
         });
-
+/*
         mDecryptFile = (Button)findViewById(R.id.decrypt_File);
         mDecryptFile.setOnClickListener(new OnClickListener() {
             public void onClick(View v) {
@@ -211,7 +237,7 @@ public class MainActivity extends Activity {
                 
                 
             }
-        });
+        });*/
         setLoggedIn(mApi.getSession().isLinked());
 
     }
