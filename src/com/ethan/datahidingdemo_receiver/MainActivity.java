@@ -180,7 +180,9 @@ public class MainActivity extends Activity {
 						if(flag==50)
 						{
 							String DecryptedMsg = FileUtils.readFileToString(file2, "UTF-8");
-							moriginMessage.setText(DecryptedMsg.substring(1);//  (1,DecryptedMsg.length()));
+							
+							String s2 = DecryptedMsg.substring(1,DecryptedMsg.length());
+							moriginMessage.setText(s2);
 						}
 						else if (flag==53)
 						{
